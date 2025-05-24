@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>記憶卡借出管理系統</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #f8f8f8;
+    }
+    h1 {
+      color: #333;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      margin-top: 10px;
+      font-family: monospace;
+    }
+    pre {
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
+    }
+    .output {
+      margin-top: 20px;
+    }
+    input[type="file"] {
+      margin-bottom: 10px;
+    }
+    .orange { color: orange; }
+    .purple { color: purple; }
+  </style>
+</head>
+<body>
+  <h1>📁 記憶卡借出管理系統（網頁版）</h1>
+
+  <input type="file" id="fileInput" accept=".txt">
+  <button onclick="processData()">分析資料</button>
+
+  <div class="output">
+    <h2>📄 依姓名排列的借出資料</h2>
+    <pre id="outputAreaName"></pre>
+
+    <h2>📄 依卡號排列的最新紀錄</h2>
+    <pre id="outputAreaCode"></pre>
+  </div>
+
+  <script>
+    let fileContent = "";
+
+    const customOrder = [
+      "巍麒原",
+      "張哲嘉",
+      "小美",
+      "阿強"
+      // 你可以依照需要加更多人名
+    ];
+
+    document.getElementById("fileInput").addEventListener("change", function(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        fileContent = e.target.result;
+        alert("檔案讀取成功！可按下『分析資料』");
+      };
+
+      reader.readAsText(file, 'UTF-8');
+    });
+
+    function processData() {
+      if (!fileContent) {
+        alert("請先選擇檔案");
+        return;
+      }
+
+      const lines = fileContent.split("\n");
+      const lastLineByCode = {};
+
+      for (let line of lines) {
+        line = line.trim();
+        if (line.length < 10) continue;
+
+        const code = line.substring(0, 10);
+        if (line.includes(".  .")) {
+          line = line.replace(".  .", "notback");
+        }
+
+        // ✅ 儲存每個編號的最後一筆紀錄
+        lastLineByCode[code] = line;
+      }
+
+      const nameMap = {};
+
+      for (let code in lastLineByCode) {
+        const line = lastLineByCode[code];
+        const rest = line.substring(10).trim();
+        const tokens = rest.split(/\s+/);
+        const name = tokens[0];
+        const date = tokens[1];
+
+        const displayCode = `${code} (${date})`;
+
+        if (!nameMap[name]) nameMap[name] = [];
+        if (line.includes("notback")) {
+          nameMap[name].push(displayCode);
+        }
+      }
+
+      // ✅ 建立姓名排序的輸出
+      let nameOutput = "";
+      for (let name of customOrder) {
+        if (nameMap[name]) {
+          nameOutput += `【${name}】\n`;
+          nameOutput += nameMap[name].join("    ") + "\n\n";
+        }
+      }
+
+      const remainingNames = Object.keys(nameMap).filter(n => !customOrder.includes(n)).sort();
+      for (let name of remainingNames) {
+        nameOutput += `【${name}】\n`;
+        nameOutput += nameMap[name].join("    ") + "\n\n";
+      }
+
+      document.getElementById("outputAreaName").innerHTML = colorizeText(nameOutput);
+
+      // ✅ 建立依照編號的最新紀錄輸出
+      let codeOutput = "";
+      for (let code in lastLineByCode) {
+        const line = lastLineByCode[code];
+        codeOutput += line + "\n";
+      }
+
+      document.getElementById("outputAreaCode").innerHTML = colorizeText(codeOutput);
+    }
+
+    // ✅ 對不同編號進行著色
+    function colorizeText(text) {
+      return text.replace(/(000224-\d{3})/g, '<span class="orange">$1</span>')
+                 .replace(/(000225-\d{3})/g, '<span class="purple">$1</span>');
+    }
+  </script>
+</body>
+</html>
